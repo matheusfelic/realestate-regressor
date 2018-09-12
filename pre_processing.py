@@ -1,6 +1,8 @@
 from bs4 import BeautifulSoup as bs
 import glob as g
 import sys
+import pandas as pd
+import numpy as np
 
 def extractText(html):
     soup = bs(html, 'html.parser')
@@ -18,15 +20,22 @@ def writeTxt(pages):
                 f2.write(text)
         count += 1
 
-#def extractCsv(sheets):
-    #for csv in sheets:
+def extractCsv(sheet):
+    csv = pd.read_csv(
+        sheet, sep=',', header=None, 
+        names=["Preço", "Latitude", "Longitude", "Quartos", "Bairro", "Cidade", "Estado", "Url", "Id"])
+    #print(csv.shape)
+    print(csv.head())
+    return csv
+        
 
 
 def main():
     pages = g.glob("C:\\Users\\mathe\\Documents\\TCC\\trindadeimoveis.com.br\\*.html")
     sheets = g.glob("C:\\Users\\mathe\\Documents\\TCC\\trindadeimoveis.com.br\\*.csv")
     #writeTxt(pages)
-    extractCsv(sheets)
+    for sheet in sheets:
+        csv = extractCsv(sheet)
 
 
 if __name__ == '__main__':
