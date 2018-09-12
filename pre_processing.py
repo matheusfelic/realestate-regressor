@@ -21,21 +21,30 @@ def writeTxt(pages):
         count += 1
 
 def extractCsv(sheet):
-    csv = pd.read_csv(
+    dt = pd.read_csv(
         sheet, sep=',', header=None, 
-        names=["Preço", "Latitude", "Longitude", "Quartos", "Bairro", "Cidade", "Estado", "Url", "Id"])
-    #print(csv.shape)
-    print(csv.head())
-    return csv
-        
+        names=["Preço", "Latitude", "Longitude", "Quartos","TBD", "Nan2", "Nan3", "Nan4", "Bairro", "Nan5", "Cidade", "Estado", "Url", "Id"])
+    #print(dt.shape)
+    dt = dt.dropna(axis='columns')
+    #print(dt.head())
+    return dt
+
+def writeCsv(csv):
+    file = "C:\\Users\\mathe\\Documents\\TCC\\csv\\csv_final.csv"
+    with open(file, "w", encoding="utf-8") as f1:
+        f1.write(csv)    
 
 
 def main():
     pages = g.glob("C:\\Users\\mathe\\Documents\\TCC\\trindadeimoveis.com.br\\*.html")
     sheets = g.glob("C:\\Users\\mathe\\Documents\\TCC\\trindadeimoveis.com.br\\*.csv")
     #writeTxt(pages)
+    dt = pd.DataFrame()
     for sheet in sheets:
-        csv = extractCsv(sheet)
+        dt = dt.append(extractCsv(sheet))
+    csv = dt.to_csv()
+    writeCsv(csv)
+    
 
 
 if __name__ == '__main__':
