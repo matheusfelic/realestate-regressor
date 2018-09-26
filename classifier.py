@@ -58,7 +58,6 @@ def main():
     if opt.csv_mode:
         train_set = pd.read_csv("csv/csv_final_train.csv").fillna(0)
         test_set = pd.read_csv("csv/csv_final_test.csv").fillna(0)
-        print(train_set)
     #elif opt.text_mode:
         #train_set = 
         #test_set = 
@@ -80,7 +79,6 @@ def main():
         else:
            X_train = train_set.Preço.values.copy() #preco de acordo com:
            Y_train = train_set.Quartos.values #quartos
-           print(Y_train)
         # choosing classifier
         classifier = None
         if opt.classifier_picked == "xgb":
@@ -97,20 +95,19 @@ def main():
             classifier = classifiers[3]
 
         classifier = classifier.fit(X_train[:, np.newaxis], Y_train)
+
         X_test = test_set.Preço.values.copy()
         Y_test = test_set.Quartos.values
+        print(test_set)
         print("Finished training...")
         predictions = []
         #adjust from here on
-        for line in test_set:
-            #bow = vector.transform([f])
-            predict = classifier.predict(X_test[:, np.newaxis])
-            predictions.extend(predict)
+        predict = classifier.predict(X_test[:, np.newaxis])
+        predictions.extend(predict)
         for predict in predictions:	
             print("Relevance: " + str(predict) + ", ")
-            print(metrics.classification_report(
-            Y_test, predict))
-            print("Accuracy: ", metrics.accuracy_score(Y_test, predict))
+        print(metrics.classification_report(Y_test, predict))
+        #print("Accuracy: ", metrics.accuracy_score(Y_test, predict))
         return predictions
         
 #change from here on
