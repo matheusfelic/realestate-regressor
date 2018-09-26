@@ -7,6 +7,8 @@ from optparse import OptionParser
 from sklearn import metrics
 from time import time
 import json
+import pandas as pd
+import numpy as np
 # Data loading and vectorizer libraries
 from sklearn.datasets import load_files
 from sklearn.feature_extraction.text import CountVectorizer
@@ -14,7 +16,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 # Classifiers libraries
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
-from xgboost import XGBClassifier 
+from xgboost import XGBClassifier
 from sklearn.svm import SVR
 
 names = [
@@ -53,20 +55,21 @@ def main():
     # loading subsets
     train_set = None
     test_set = None
-    if opt.text_mode:
-        train_set = load_files("txts/data/")
-        test_set = load_files("txts/test/")
-    else:
-        train_set = load_files("csv/data/")
-        test_set = load_files("csv/test/")
+    if opt.csv_mode:
+        train_set = pd.read_csv("csv/csv_final_train.csv").fillna(0)
+        test_set = pd.read_csv("csv/csv_final_test.csv").fillna(0)
+        print(train_set)
+    #elif opt.text_mode:
+        #train_set = 
+        #test_set = 
 
     if opt.evaluation:
         evaluate(train_set, test_set)
     else:
         # print data from test subsets
         print("Data set information:")
-        print(3*' ', "%d documents (training set)" % (len(train_set.data)))
-        print(3*' ', "%d documents  (test set)" % (len(test_set.data)))
+        print(3*' ', "%d documents (training set)" % (len(train_set)))
+        print(3*' ', "%d documents  (test set)" % (len(test_set)))
         print("\n")
         # initialize vectorizer for BoW
         if opt.text_mode:
@@ -75,8 +78,9 @@ def main():
             X_train = vector.fit_transform(train_set.data).todense()
             Y_train = train_set.target
         else:
-            #check how it is for structured
-
+           X_train = train_set.Preço.values.copy() #preco de acordo com:
+           Y_train = train_set.Quartos.values #quartos
+           print(Y_train)
         # choosing classifier
         classifier = None
         if opt.classifier_picked == "xgb":
@@ -92,40 +96,24 @@ def main():
                 "Classifier type not valid, using default: randomforest, for help use: --help")
             classifier = classifiers[3]
 
-        classifier = classifier.fit(X_train, Y_train)
+        classifier = classifier.fit(X_train[:, np.newaxis], Y_train)
+        X_test = test_set.Preço.values.copy()
+        Y_test = test_set.Quartos.values
         print("Finished training...")
         predictions = []
         #adjust from here on
-        with open(opt.json_mode, mode='r', errors='ignore') as j1:
-        	if opt.json_mode:
-        		json_data = json.loads(j1.read())
-        		for page in json_data:
-        			parsedData = parsingHTML(page["texto"])
-        			bow = vector.transform([parsedData])
-        			predict = classifier.predict(bow.toarray())
-        			predictions.extend(predict)
-        		
-        		zeroes = 0
-        		ones = 0
-        		for predict in predictions:
-        			if predict == 1:
-        				ones += 1
-        			elif predict == 0:
-        				zeroes += 1
-        				
-        		print("Zeroes "+ str(zeroes))
-        		print("Ones "+ str(ones))
-        	return predictions
-            
-        with open(opt.file, mode='r', encoding="utf-8", errors='ignore') as data:
-            input = data.read()
-            bow = vector.transform([input])
-            predict = classifier.predict(bow.toarray())
+        for line in test_set:
+            #bow = vector.transform([f])
+            predict = classifier.predict(X_test[:, np.newaxis])
             predictions.extend(predict)
-            for predict in predictions:	
-            	print("Relevance: " + str(predict) + ", ")
-            return predictions
-
+        for predict in predictions:	
+            print("Relevance: " + str(predict) + ", ")
+            print(metrics.classification_report(
+            Y_test, predict))
+            print("Accuracy: ", metrics.accuracy_score(Y_test, predict))
+        return predictions
+        
+#change from here on
 def evaluate(train_set, test_set):
     print("Starting evaluation...")
     t0 = time()
@@ -134,8 +122,9 @@ def evaluate(train_set, test_set):
             #stop_words=getStopWords()) check if its necessary
             X_train = vector.fit_transform(train_set.data).todense()
             Y_train = train_set.target
-        else:
-            #check how it is for structured
+    else:
+        X_train = train_set.Preço.values.copy() 
+        Y_train = train_set.Quartos.values 
 
     duration = time() - t0
     print("executed in %fs " % (duration))

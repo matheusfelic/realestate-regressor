@@ -23,14 +23,14 @@ def writeTxt(pages):
 def extractCsv(sheet):
     dt = pd.read_csv(
         sheet, sep=',', header=None, 
-        names=["Preço", "Latitude", "Longitude", "Quartos","TBD", "Nan2", "Nan3", "Nan4", "Bairro", "Nan5", "Cidade", "Estado", "Url", "Id"])
+        names=["Preço", "Latitude", "Longitude", "Quartos", "Área", "Vagas", "Banheiros", "Suítes", "Bairro", "Distrito", "Cidade", "Estado", "Url", "Timestamp"])
     #print(dt.shape)
     dt = dt.dropna(axis='columns')
     #print(dt.head())
     return dt
 
-def writeCsv(csv):
-    file = "C:\\Users\\mathe\\Documents\\TCC\\csv\\csv_final.csv"
+def writeCsv(csv, type):
+    file = "C:\\Users\\mathe\\Documents\\TCC\\csv\\csv_final_"+ type +".csv"
     with open(file, "w", encoding="utf-8") as f1:
         f1.write(csv)    
 
@@ -39,11 +39,19 @@ def main():
     pages = g.glob("C:\\Users\\mathe\\Documents\\TCC\\trindadeimoveis.com.br\\*.html")
     sheets = g.glob("C:\\Users\\mathe\\Documents\\TCC\\trindadeimoveis.com.br\\*.csv")
     #writeTxt(pages)
-    dt = pd.DataFrame()
+    dt1 = pd.DataFrame()
+    dt2 = pd.DataFrame() 
+    count = 1
     for sheet in sheets:
-        dt = dt.append(extractCsv(sheet))
-    csv = dt.to_csv()
-    writeCsv(csv)
+        if count < 60:
+            dt1 = dt1.append(extractCsv(sheet))
+        else:
+            dt2 = dt2.append(extractCsv(sheet))
+        count += 1
+    csv1 = dt1.to_csv()
+    csv2 = dt2.to_csv()
+    writeCsv(csv1, "train")
+    writeCsv(csv2, "test")
     
 
 
