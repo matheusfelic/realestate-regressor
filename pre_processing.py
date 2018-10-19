@@ -16,40 +16,36 @@ def writeTxt(pages):
     for file in pages:
         with open(file, "r", encoding="utf-8", errors="ignore") as f1:
             text = extractText(f1)
-            with open (("imovel" + str(count) + ".txt"), "w", encoding = "utf-8") as f2:
+            with open (("poa_sample/txts/poa_realestate" + str(count) + ".txt"), "w", encoding = "utf-8") as f2:
                 f2.write(text)
         count += 1
 
 def extractCsv(sheet):
     dt = pd.read_csv(
         sheet, sep=',', header=None, 
-        names=["Preço", "Latitude", "Longitude", "Quartos", "Área", "Vagas", "Banheiros", "Suítes", "Bairro", "Distrito", "Cidade", "Estado", "Url", "Timestamp"])
+        names=["price", "latitude", "longitude", "bedrooms", "bathrooms", "area", "pkspaces", "ensuites", "timestamp", "type", "operation", "url"])
     #print(dt.shape)
     dt = dt.dropna(axis='columns')
     #print(dt.head())
     return dt
 
 def writeCsv(csv, type):
-    file = "C:\\Users\\mathe\\Documents\\TCC\\csv\\csv_final_"+ type +".csv"
+    file = "RJ_final_"+ type +".csv"
     with open(file, "w", encoding="utf-8") as f1:
         f1.write(csv)    
 
 
 def main():
-    pages = g.glob("C:\\Users\\mathe\\Documents\\TCC\\trindadeimoveis.com.br\\*.html")
-    sheets = g.glob("C:\\Users\\mathe\\Documents\\TCC\\trindadeimoveis.com.br\\*.csv")
+    #pages = g.glob("poa_sample/*.html")
+    dt1 = extractCsv("RJ_sample.csv")
+    #print(sheets)
     #writeTxt(pages)
-    dt1 = pd.DataFrame()
-    dt2 = pd.DataFrame() 
-    count = 1
-    for sheet in sheets:
-        if count < 60:
-            dt1 = dt1.append(extractCsv(sheet))
-        else:
-            dt2 = dt2.append(extractCsv(sheet))
-        count += 1
-    csv1 = dt1.to_csv()
-    csv2 = dt2.to_csv()
+    dt2 = pd.DataFrame()
+    cond = dt1.index < (len(dt1) * 0.8)
+    dt2 = dt1.loc[cond, :]
+    dt1.drop(dt2.index, inplace=True)
+    csv1 = dt2.to_csv(index=False)
+    csv2 = dt1.to_csv(index=False)
     writeCsv(csv1, "train")
     writeCsv(csv2, "test")
     
