@@ -32,14 +32,25 @@ def extractCsv(sheet):
 def writeCsv(csv, type):
     file = "RJ_final_"+ type +".csv"
     with open(file, "w", encoding="utf-8") as f1:
-        f1.write(csv)    
+        f1.write(csv) 
+
+def orderPages(dt1, pages):
+    p = []
+    count = 0
+    for page in pages:
+        for row in dt1:
+            if row['url'] == page:
+                p.append(page)
+        
+        
 
 
 def main():
-    #pages = g.glob("poa_sample/*.html")
+    pages = g.glob("rj_sample/*.html")
     dt1 = extractCsv("RJ_sample.csv")
     #print(sheets)
-    #writeTxt(pages)
+    pages = orderPages(dt1, pages)
+    writeTxt(pages)
     dt2 = pd.DataFrame()
     cond = dt1.index < (len(dt1) * 0.8)
     dt2 = dt1.loc[cond, :]
