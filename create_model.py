@@ -20,40 +20,40 @@ from smac.scenario.scenario import Scenario
 from smac.facade.smac_facade import SMAC
 
 # Create a dataframe with the four feature variables
-train = pd.read_csv(sys.argv[1])
-test = pd.read_csv(sys.argv[2])
+train_csv = pd.read_csv(sys.argv[1])
+test_csv = pd.read_csv(sys.argv[2])
 
 city = sys.argv[1].split("_")[0] 
 print(city)
 
-train = train.drop(['url'],axis=1)
-test = test.drop(['url'],axis=1)
+train_csv = train_csv.drop(['url'],axis=1)
+test_csv = test_csv.drop(['url'],axis=1)
 
-train['type'] = train['type'].map({'apart': 1, 'house': 0})
-test['type'] = test['type'].map({'apart': 1, 'house': 0})
+train_csv['type'] = train_csv['type'].map({'apart': 1, 'house': 0})
+test_csv['type'] = test_csv['type'].map({'apart': 1, 'house': 0})
 
 #remove the rent rows, leaving only 'sell' operation
-train['operation'] = train['operation'].map({'sell': 1, 'rent': 0})
-test['operation'] = test['operation'].map({'sell': 1, 'rent': 0})
+train_csv['operation'] = train_csv['operation'].map({'sell': 1, 'rent': 0})
+test_csv['operation'] = test_csv['operation'].map({'sell': 1, 'rent': 0})
 
-train = train[train.operation != 0]
-test = test[test.operation != 0]
+train_csv = train_csv[train_csv.operation != 0]
+test_csv = test_csv[test_csv.operation != 0]
 
 # Create a list of the feature column's names
-features = train.columns[1:]
+features = train_csv.columns[1:]
 
-# train['species'] contains the actual species names. Before we can use it,
+# train_csv['species'] contains the actual species names. Before we can use it,
 # we need to convert each species name into a digit. So, in this case there
 # are three species, which have been coded as 0, 1, or 2.
-y = train['price']
-y_test = test['price']
+y = train_csv['price']
+y_test_csv = test_csv['price']
 
-train_sample = train.sample(n=len(train), random_state=2)
+train_csv_sample = train_csv.sample(n=len(train_csv), random_state=2)
 
 # Show the number of observations for the test and training dataframes
-print('Number of observations in the training data:', len(train_sample))
-print('Number of observations in the test data:',len(test))
-#print('TRAIN SAMPLES VALUES:', train_sample)
+print('Number of observations in the training data:', len(train_csv_sample))
+print('Number of observations in the test data:',len(test_csv))
+#print('TRAIN SAMPLES VALUES:', train_csv_sample)
 
 
 def rf_from_cfg(cfg, seed):
@@ -91,7 +91,7 @@ def rf_from_cfg(cfg, seed):
         
     # Creating root mean square error for sklearns crossvalidation
     rmse_scorer = make_scorer(rmse, greater_is_better=False)
-    score = cross_val_score(rfr, train_sample.iloc[:,1:7].as_matrix(), train_sample.iloc[:,0].as_matrix(), cv=11, scoring=rmse_scorer)
+    score = cross_val_score(rfr, train_csv_sample.iloc[:,1:7].as_matrix(), train_csv_sample.iloc[:,0].as_matrix(), cv=11, scoring=rmse_scorer)
     return -1 * np.mean(score)  # Because cross_validation sign-flips the score
 
 print("Running hyperparameter optimization...")
@@ -174,17 +174,17 @@ regr = RandomForestRegressor(max_depth=incumbent._values['max_depth'],
         random_state=0, 
         bootstrap=incumbent._values['num_trees'], min_samples_split=incumbent._values['min_samples_to_split'], min_samples_leaf=incumbent._values['min_samples_in_leaf'], max_leaf_nodes=incumbent._values['max_leaf_nodes'])
 
-regr.fit(train[features], y)
+regr.fit(train_csv[features], y)
 
 # Apply the Classifier we trained to the test data (which, remember, it has never seen before)
-regr.predict(test[features])
+regr.predict(test_csv[features])
 
-r_mae  = np.median(abs(regr.predict(test[features])-y_test)/y_test)
+r_mae  = np.median(abs(regr.predict(test_csv[features])-y_test_csv)/y_test_csv)
 print(r_mae)
 mlflow.log_metric("r_mae",r_mae)
 
 print("Building the final model...")
-result = pd.concat([train,test])
+result = pd.concat([train_csv,test_csv])
 y = result['price']
 regr.fit(result[features], y)
 joblib.dump(regr,city+".pkl")
