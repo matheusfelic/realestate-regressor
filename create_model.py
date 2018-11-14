@@ -2,15 +2,21 @@ import logging
 import os, sys
 import inspect
 import pandas as pd
+import glob as g
+import random
 from sklearn.externals import joblib
 import mlflow
 from mlflow.sklearn import log_model
 
 import numpy as np
-from sklearn.metrics import make_scorer
-from sklearn.cross_validation import cross_val_score
+from sklearn.metrics import make_scorer, mean_squared_error, r2_score, mean_squared_log_error
+from sklearn.model_selection import cross_val_score
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.svm import SVR
+import xgboost as xgb
 from sklearn.datasets import load_boston
+from sklearn.datasets import load_files
+from sklearn.feature_extraction.text import CountVectorizer
 
 from smac.configspace import ConfigurationSpace
 from ConfigSpace.hyperparameters import CategoricalHyperparameter, UniformFloatHyperparameter, UniformIntegerHyperparameter
@@ -22,6 +28,20 @@ from smac.facade.smac_facade import SMAC
 # Create a dataframe with the four feature variables
 train_csv = pd.read_csv(sys.argv[1])
 test_csv = pd.read_csv(sys.argv[2])
+
+train_urls = g.glob(sys.argv[3] + "/txts/train/*.txt")
+test_urls = g.glob(sys.argv[3] + "/txts/test/*.txt")
+
+train_txt = []
+test_txt = []
+
+for txt in train_urls:
+    with open(txt, "r", encoding="utf-8", errors="ignore") as t1:
+        train_txt.append(t1.read())
+
+for txt in test_urls:
+    with open(txt, "r", encoding="utf-8", errors="ignore") as t1:
+        test_txt.append(t1.read())
 
 city = sys.argv[1].split("_")[0] 
 print(city)
@@ -39,6 +59,19 @@ test_csv['operation'] = test_csv['operation'].map({'sell': 1, 'rent': 0})
 train_csv = train_csv[train_csv.operation != 0]
 test_csv = test_csv[test_csv.operation != 0]
 
+print(len(train_txt))
+print(len(test_txt))
+#print(train_csv.count)
+#print(test_csv.count)
+#create the text column
+train_csv['txt'] = train_txt
+test_csv['txt'] = test_txt
+
+vector = CountVectorizer(stop_words=None)
+X_txt_train = vector.fit_transform(train_csv['txt']).todense()
+X_txt_test = vector.transform(test_csv['txt']).todense()
+
+
 # Create a list of the feature column's names
 features = train_csv.columns[1:]
 
@@ -46,15 +79,21 @@ features = train_csv.columns[1:]
 # we need to convert each species name into a digit. So, in this case there
 # are three species, which have been coded as 0, 1, or 2.
 y = train_csv['price']
+print(y.count)
 y_test_csv = test_csv['price']
 
-train_csv_sample = train_csv.sample(n=len(train_csv), random_state=2)
+#train_sample = train_csv.sample(n=len(train_csv), random_state=2)
+
+#train_sample = random.sample(list(X_txt_train), len(X_txt_train))
+train_sample = X_txt_train
 
 # Show the number of observations for the test and training dataframes
-print('Number of observations in the training data:', len(train_csv_sample))
+print('Number of observations in the training data:', len(train_sample))
 print('Number of observations in the test data:',len(test_csv))
-#print('TRAIN SAMPLES VALUES:', train_csv_sample)
+#print('TRAIN SAMPLES VALUES:', train_sample)
 
+svm = SVR()
+xgboost = xgb.XGBRegressor()
 
 def rf_from_cfg(cfg, seed):
     """
@@ -91,7 +130,8 @@ def rf_from_cfg(cfg, seed):
         
     # Creating root mean square error for sklearns crossvalidation
     rmse_scorer = make_scorer(rmse, greater_is_better=False)
-    score = cross_val_score(rfr, train_csv_sample.iloc[:,1:7].as_matrix(), train_csv_sample.iloc[:,0].as_matrix(), cv=11, scoring=rmse_scorer)
+    #score = cross_val_score(rfr, train_sample.iloc[:,1:7].as_matrix(), train_sample.iloc[:,0].as_matrix(), cv=11, scoring=rmse_scorer)
+    score = cross_val_score(rfr, train_sample, train_csv['price'], cv=11, scoring=rmse_scorer)
     return -1 * np.mean(score)  # Because cross_validation sign-flips the score
 
 print("Running hyperparameter optimization...")
@@ -174,14 +214,36 @@ regr = RandomForestRegressor(max_depth=incumbent._values['max_depth'],
         random_state=0, 
         bootstrap=incumbent._values['num_trees'], min_samples_split=incumbent._values['min_samples_to_split'], min_samples_leaf=incumbent._values['min_samples_in_leaf'], max_leaf_nodes=incumbent._values['max_leaf_nodes'])
 
-regr.fit(train_csv[features], y)
+#regr.fit(train_csv[features], y)
+regr.fit(X_txt_train, y)
 
 # Apply the Classifier we trained to the test data (which, remember, it has never seen before)
-regr.predict(test_csv[features])
+#regr.predict(test_csv[features])
+regr.predict(X_txt_test)
 
-r_mae  = np.median(abs(regr.predict(test_csv[features])-y_test_csv)/y_test_csv)
+#metrics for the csv
+#r_mae  = np.median(abs(regr.predict(test_csv[features])-y_test_csv)/y_test_csv)
+#r_mse = mean_squared_error(regr.predict(test_csv[features]), y_test_csv)
+#r_msle = mean_squared_log_error(regr.predict(test_csv[features]), y_test_csv)
+#r_r2 = r2_score(regr.predict(test_csv[features]), y_test_csv)
+
+#metrics for txt
+r_mae = np.median(abs(regr.predict(X_txt_test)-y_test_csv)/y_test_csv)
+r_mse = mean_squared_error(regr.predict(X_txt_test), y_test_csv)
+r_msle = mean_squared_log_error(regr.predict(X_txt_test), y_test_csv)
+r_r2 = r2_score(regr.predict(X_txt_test), y_test_csv)
+
+#printing metrics
 print(r_mae)
+print(r_mse)
+print(r_msle)
+print(r_r2)
+
+#adding metrics to log
 mlflow.log_metric("r_mae",r_mae)
+mlflow.log_metric("r_mse",r_mse)
+mlflow.log_metric("r_msle",r_msle)
+mlflow.log_metric("r_r2",r_r2)
 
 print("Building the final model...")
 result = pd.concat([train_csv,test_csv])

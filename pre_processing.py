@@ -17,9 +17,13 @@ def writeTxt(pages):
         with open(file, "r", encoding="utf-8", errors="ignore") as f1:
             text = extractText(f1)
             #print("finishing extracting...")
-            with open (("poa_sample/txts/poa_realestate" + str(count) + ".txt"), "w", encoding = "utf-8") as f2:
-                f2.write(text)
-                #print("finishing writing...")
+            if(count < (len(pages) * 0.8)):
+                with open (("poa_sample/txts/train/poa_realestate" + str(count) + ".txt"), "w", encoding = "utf-8") as f2:
+                    f2.write(text)
+                    #print("finishing writing...")
+            else:
+                with open (("poa_sample/txts/test/poa_realestate" + str(count) + ".txt"), "w", encoding = "utf-8") as f2:
+                    f2.write(text)
         count += 1
 
 def extractCsv(sheet):
@@ -47,7 +51,8 @@ def orderPages(dt1, pages):
             #print(stripped_page)
             if stripped_page == url:
                 #print("ordered")
-                p.append(page)  
+                p.append(page)
+                break  
     return p  
 
 def main():
@@ -55,6 +60,7 @@ def main():
     #print(pages)
     dt1 = extractCsv("POA_sample.csv")
     #print(sheets)
+    dt1 = dt1[dt1.operation != 'rent']
     pages = orderPages(dt1, pages)
     print("finishing ordering...")
     writeTxt(pages)
