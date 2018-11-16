@@ -25,12 +25,21 @@ from smac.tae.execute_func import ExecuteTAFuncDict
 from smac.scenario.scenario import Scenario
 from smac.facade.smac_facade import SMAC
 
+def getStopWords():
+    stopwords = ""
+    with open("stopwords.txt", "r") as sw:
+        stopwords = sw.read()
+    return stopwords.split()
+
 # Create a dataframe with the four feature variables
 train_csv = pd.read_csv(sys.argv[1])
 test_csv = pd.read_csv(sys.argv[2])
 
-train_urls = g.glob(sys.argv[3] + "/txts/train/*.txt")
-test_urls = g.glob(sys.argv[3] + "/txts/test/*.txt")
+city = sys.argv[1].split("_")[0] 
+print(city)
+
+train_urls = g.glob(city.lower() + "_sample/txts/train/*.txt")
+test_urls = g.glob(city.lower() + "_sample/txts/test/*.txt")
 
 train_txt = []
 test_txt = []
@@ -42,9 +51,6 @@ for txt in train_urls:
 for txt in test_urls:
     with open(txt, "r", encoding="utf-8", errors="ignore") as t1:
         test_txt.append(t1.read())
-
-city = sys.argv[1].split("_")[0] 
-print(city)
 
 train_csv = train_csv.drop(['url'],axis=1)
 test_csv = test_csv.drop(['url'],axis=1)
@@ -59,18 +65,19 @@ test_csv['operation'] = test_csv['operation'].map({'sell': 1, 'rent': 0})
 train_csv = train_csv[train_csv.operation != 0]
 test_csv = test_csv[test_csv.operation != 0]
 
-print(len(train_txt))
-print(len(test_txt))
+#print(len(train_txt))
+#print(len(test_txt))
 #print(train_csv.count)
 #print(test_csv.count)
+
 #create the text column
 train_csv['txt'] = train_txt
 test_csv['txt'] = test_txt
 
-vector = CountVectorizer(stop_words=None)
+#vectorizing text
+vector = CountVectorizer(stop_words=getStopWords())
 X_txt_train = vector.fit_transform(train_csv['txt']).todense()
 X_txt_test = vector.transform(test_csv['txt']).todense()
-
 
 # Create a list of the feature column's names
 features = train_csv.columns[1:]
@@ -79,12 +86,11 @@ features = train_csv.columns[1:]
 # we need to convert each species name into a digit. So, in this case there
 # are three species, which have been coded as 0, 1, or 2.
 y = train_csv['price']
-print(y.count)
+#print(y.count)
 y_test_csv = test_csv['price']
 
 #train_sample = train_csv.sample(n=len(train_csv), random_state=2)
 
-#train_sample = random.sample(list(X_txt_train), len(X_txt_train))
 train_sample = X_txt_train
 
 # Show the number of observations for the test and training dataframes
@@ -214,41 +220,115 @@ regr = RandomForestRegressor(max_depth=incumbent._values['max_depth'],
         random_state=0, 
         bootstrap=incumbent._values['num_trees'], min_samples_split=incumbent._values['min_samples_to_split'], min_samples_leaf=incumbent._values['min_samples_in_leaf'], max_leaf_nodes=incumbent._values['max_leaf_nodes'])
 
+#svm.fit(train_csv[features], y)
+#xgboost.fit(train_csv[features], y)
 #regr.fit(train_csv[features], y)
 regr.fit(X_txt_train, y)
+svm.fit(X_txt_train, y)
+xgboost.fit(X_txt_train, y)
 
 # Apply the Classifier we trained to the test data (which, remember, it has never seen before)
 #regr.predict(test_csv[features])
+#svm.predict(test_csv[features])
+#xgboost.predict(test_csv[features])
 regr.predict(X_txt_test)
+svm.predict(X_txt_test)
+xgboost.predict(X_txt_test)
 
-#metrics for the csv
-#r_mae  = np.median(abs(regr.predict(test_csv[features])-y_test_csv)/y_test_csv)
-#r_mse = mean_squared_error(regr.predict(test_csv[features]), y_test_csv)
-#r_msle = mean_squared_log_error(regr.predict(test_csv[features]), y_test_csv)
-#r_r2 = r2_score(regr.predict(test_csv[features]), y_test_csv)
+#metrics for the csv RF
+#r_mae_rf  = np.median(abs(regr.predict(test_csv[features])-y_test_csv)/y_test_csv)
+#r_mse_rf = mean_squared_error(regr.predict(test_csv[features]), y_test_csv)
+#r_msle_rf = mean_squared_log_error(regr.predict(test_csv[features]), y_test_csv)
+#r_r2_rf = r2_score(regr.predict(test_csv[features]), y_test_csv)
 
-#metrics for txt
-r_mae = np.median(abs(regr.predict(X_txt_test)-y_test_csv)/y_test_csv)
-r_mse = mean_squared_error(regr.predict(X_txt_test), y_test_csv)
-r_msle = mean_squared_log_error(regr.predict(X_txt_test), y_test_csv)
-r_r2 = r2_score(regr.predict(X_txt_test), y_test_csv)
+#metrics for the csv SVM
+#r_mae_svm  = np.median(abs(svm.predict(test_csv[features])-y_test_csv)/y_test_csv)
+#r_mse_svm = mean_squared_error(svm.predict(test_csv[features]), y_test_csv)
+#r_msle_svm = mean_squared_log_error(svm.predict(test_csv[features]), y_test_csv)
+#r_r2_svm = r2_score(svm.predict(test_csv[features]), y_test_csv)
+
+#metrics for the csv XGB
+#r_mae_xgb  = np.median(abs(xgboost.predict(test_csv[features])-y_test_csv)/y_test_csv)
+#r_mse_xgb = mean_squared_error(abs(xgboost.predict(test_csv[features])), y_test_csv)
+#r_msle_xgb = mean_squared_log_error(abs(xgboost.predict(test_csv[features])), y_test_csv)
+#r_r2_xgb = r2_score(abs(xgboost.predict(test_csv[features])), y_test_csv)
+
+#metrics for txt RF
+r_mae_rf = np.median(abs(regr.predict(X_txt_test)-y_test_csv)/y_test_csv)
+r_mse_rf = mean_squared_error(regr.predict(X_txt_test), y_test_csv)
+r_msle_rf = mean_squared_log_error(regr.predict(X_txt_test), y_test_csv)
+r_r2_rf = r2_score(regr.predict(X_txt_test), y_test_csv)
+
+#metrics for txt SVM
+r_mae_svm = np.median(abs(svm.predict(X_txt_test)-y_test_csv)/y_test_csv)
+r_mse_svm = mean_squared_error(svm.predict(X_txt_test), y_test_csv)
+r_msle_svm = mean_squared_log_error(svm.predict(X_txt_test), y_test_csv)
+r_r2_svm = r2_score(svm.predict(X_txt_test), y_test_csv)
+
+#metrics for txt XGB
+r_mae_xgb = np.median(abs(xgboost.predict(X_txt_test)-y_test_csv)/y_test_csv)
+r_mse_xgb = mean_squared_error(abs(xgboost.predict(X_txt_test)), y_test_csv)
+r_msle_xgb = mean_squared_log_error(abs(xgboost.predict(X_txt_test)), y_test_csv)
+r_r2_xgb = r2_score(abs(xgboost.predict(X_txt_test)), y_test_csv)
 
 #printing metrics
-print(r_mae)
-print(r_mse)
-print(r_msle)
-print(r_r2)
+#RF
+print("RF:")
+print("r_mae_rf: " + r_mae_rf)
+print("r_mse_rf: " + r_mse_rf)
+print("r_msle_rf: " + r_msle_rf)
+print("r_r2_rf: " + r_r2_rf)
+#SVM
+print("SVM:")
+print("r_mae_svm: " + r_mae_svm)
+print("r_mse_svm: " + r_mse_svm)
+print("r_msle_svm: " + r_msle_svm)
+print("r_r2_svm: " + r_r2_svm)
+#XGB
+print("XGB:")
+print("r_mae_xgb: " + r_mae_xgb)
+print("r_mse_xgb: " + r_mse_xgb)
+print("r_msle_xgb: " + r_msle_xgb)
+print("r_r2_xgb: " + r_r2_xgb)
 
 #adding metrics to log
-mlflow.log_metric("r_mae",r_mae)
-mlflow.log_metric("r_mse",r_mse)
-mlflow.log_metric("r_msle",r_msle)
-mlflow.log_metric("r_r2",r_r2)
+#RF
+mlflow.log_metric("r_mae_rf",r_mae_rf)
+mlflow.log_metric("r_mse_rf",r_mse_rf)
+mlflow.log_metric("r_msle_rf",r_msle_rf)
+mlflow.log_metric("r_r2_rf",r_r2_rf)
+#SVM
+mlflow.log_metric("r_mae_svm",r_mae_svm)
+mlflow.log_metric("r_mse_svm",r_mse_svm)
+mlflow.log_metric("r_msle_svm",r_msle_svm)
+mlflow.log_metric("r_r2_svm",r_r2_svm)
+#XGB
+mlflow.log_metric("r_mae_xgb",r_mae_xgb)
+mlflow.log_metric("r_mse_xgb",r_mse_xgb)
+mlflow.log_metric("r_msle_xgb",r_msle_xgb)
+mlflow.log_metric("r_r2_xgb",r_r2_xgb)
 
 print("Building the final model...")
+#result for csv
 result = pd.concat([train_csv,test_csv])
+#result for txt
+result_txt = np.concatenate((X_txt_train, X_txt_test))
 y = result['price']
-regr.fit(result[features], y)
-joblib.dump(regr,city+".pkl")
-log_model(regr, "model")
+#csv
+#regr.fit(result[features], y)
+#svm.fit(result[features], y)
+#xgboost.fit(result[features], y)
+#txt
+regr.fit(result_txt, y)
+svm.fit(result_txt, y)
+xgboost.fit(result_txt, y)
+
+joblib.dump(regr,city+"_rf.pkl")
+log_model(regr, "model_rf")
+
+joblib.dump(svm,city+"_svm.pkl")
+log_model(svm, "model_svm")
+
+joblib.dump(xgboost,city+"_xgb.pkl")
+log_model(xgboost, "model_xgb")
 
